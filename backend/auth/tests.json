@@ -1,0 +1,40 @@
+{
+  "tests": [
+    {
+      "name": "check-phone (not registered)",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "check-phone", "phone": "+79990000000"},
+      "expectedStatus": 200,
+      "expectedBody": {"registered": false},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "send-code",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "send-code", "phone": "+79990000001"},
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "login unregistered",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "login", "phone": "+79990000000", "password": "wrongpass"},
+      "expectedStatus": 404,
+      "expectedBody": {"error": "Номер не зарегистрирован"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "register validation error",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "register", "phone": "+79990000000", "name": "Тест", "password": "123"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Заполните все поля. Пароль минимум 6 символов."},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

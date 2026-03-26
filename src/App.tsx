@@ -15,50 +15,32 @@ const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
-// Ключ текущей сессии (какой телефон вошёл)
+// Сессия хранит телефон + имя вошедшего пользователя
 const SESSION_KEY = "2keys_session";
 
-// Данные профиля привязаны к номеру: 2keys_profile_79161234567
-function profileKey(phone: string) { return `2keys_profile_${phone}`; }
-
-function loadSession(): string | null {
-  return localStorage.getItem(SESSION_KEY); // возвращает phone или null
-}
-
-function loadProfile(phone: string): { phone: string; name: string } | null {
+function loadSession(): { phone: string; name: string } | null {
   try {
-    const raw = localStorage.getItem(profileKey(phone));
+    const raw = localStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-function saveProfile(profile: { phone: string; name: string }) {
-  localStorage.setItem(profileKey(profile.phone), JSON.stringify(profile));
-}
-
 export default function App() {
-  const sessionPhone = loadSession();
-  const sessionProfile = sessionPhone ? loadProfile(sessionPhone) : null;
-
-  const [authed, setAuthed] = useState(!!sessionProfile);
-  const [user, setUser] = useState(sessionProfile ?? { phone: "", name: "" });
+  const saved = loadSession();
+  const [authed, setAuthed] = useState(!!saved);
+  const [user, setUser] = useState(saved ?? { phone: "", name: "" });
   const [tab, setTab] = useState<Tab>("chats");
   const [unreadNotifs] = useState(2);
 
   useEffect(() => {
     if (authed && user.phone) {
-      saveProfile(user);
-      localStorage.setItem(SESSION_KEY, user.phone);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
     }
   }, [authed, user]);
 
   const handleAuth = (phone: string, name: string) => {
-    // Имя: если уже есть профиль под этим номером — берём оттуда
-    const existing = loadProfile(phone);
-    const resolvedName = name || existing?.name || "";
-    const newUser = { phone, name: resolvedName };
-    saveProfile(newUser);
-    localStorage.setItem(SESSION_KEY, phone);
+    const newUser = { phone, name };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
     setUser(newUser);
     setAuthed(true);
   };
@@ -70,11 +52,8 @@ export default function App() {
     setTab("chats");
   };
 
-  // Передаём existingProfile по конкретному телефону (заполняется только после ввода номера)
-  const getExistingProfile = (phone: string) => loadProfile(phone);
-
   if (!authed) {
-    return <AuthPage onAuth={handleAuth} getExistingProfile={getExistingProfile} />;
+    return <AuthPage onAuth={handleAuth} />;
   }
 
   return (
