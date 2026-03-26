@@ -3,16 +3,16 @@ import Icon from "@/components/ui/icon";
 
 interface AuthPageProps {
   onAuth: (phone: string, name: string) => void;
-  existingProfile: { phone: string; name: string } | null;
+  getExistingProfile: (phone: string) => { phone: string; name: string } | null;
 }
 
-export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
-  const isReturning = !!existingProfile;
+export default function AuthPage({ onAuth, getExistingProfile }: AuthPageProps) {
   const [step, setStep] = useState<"phone" | "code" | "name">("phone");
-  const [phone, setPhone] = useState(existingProfile?.phone ?? "");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [name, setName] = useState(existingProfile?.name ?? "");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [existingProfile, setExistingProfile] = useState<{ phone: string; name: string } | null>(null);
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, "");
@@ -52,9 +52,10 @@ export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
       setLoading(true);
       setTimeout(() => {
         setLoading(false);
-        // Если профиль уже есть — имя не спрашиваем, сразу входим
-        if (isReturning) {
-          onAuth(phone, existingProfile.name);
+        const profile = getExistingProfile(phone);
+        setExistingProfile(profile);
+        if (profile) {
+          onAuth(phone, profile.name);
         } else {
           setStep("name");
         }
@@ -86,9 +87,10 @@ export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
             </div>
             <span className="font-display text-2xl font-black text-yellow tracking-tight">2Keys</span>
           </div>
-          {isReturning ? (
+          {existingProfile ? (
             <p className="text-sm font-body" style={{ color: "var(--text-muted)" }}>
-              С возвращением, <span style={{ color: "var(--text)" }}>{existingProfile.name}</span>
+              С возвращением,{" "}
+              <span style={{ color: "var(--text)" }}>{existingProfile.name}</span>
             </p>
           ) : (
             <p className="text-sm font-body" style={{ color: "var(--text-muted)" }}>
@@ -166,7 +168,7 @@ export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
             {loading && (
               <div className="flex items-center justify-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
                 <Icon name="Loader2" size={14} className="animate-spin text-yellow" />
-                {isReturning ? "Вхожу в аккаунт..." : "Проверяю код..."}
+                Проверяю код...
               </div>
             )}
             <button
@@ -187,7 +189,7 @@ export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
               </div>
               <p className="font-display text-lg font-bold">Как вас зовут?</p>
               <p className="text-sm font-body mt-1" style={{ color: "var(--text-muted)" }}>
-                Ваше имя спрашивается только один раз
+                Имя привязывается к номеру и запоминается навсегда
               </p>
             </div>
             <input

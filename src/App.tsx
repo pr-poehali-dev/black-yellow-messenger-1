@@ -15,54 +15,66 @@ const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
-// Профиль хранится навсегда — имя спрашивается только один раз
-const PROFILE_KEY = "2keys_profile";
-// Сессия — вошёл ли пользователь прямо сейчас (сбрасывается при выходе)
+// Ключ текущей сессии (какой телефон вошёл)
 const SESSION_KEY = "2keys_session";
 
-function loadProfile(): { phone: string; name: string } | null {
+// Данные профиля привязаны к номеру: 2keys_profile_79161234567
+function profileKey(phone: string) { return `2keys_profile_${phone}`; }
+
+function loadSession(): string | null {
+  return localStorage.getItem(SESSION_KEY); // возвращает phone или null
+}
+
+function loadProfile(phone: string): { phone: string; name: string } | null {
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
+    const raw = localStorage.getItem(profileKey(phone));
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
-function loadSession(): boolean {
-  return localStorage.getItem(SESSION_KEY) === "1";
+function saveProfile(profile: { phone: string; name: string }) {
+  localStorage.setItem(profileKey(profile.phone), JSON.stringify(profile));
 }
 
 export default function App() {
-  const profile = loadProfile();
-  const session = loadSession();
+  const sessionPhone = loadSession();
+  const sessionProfile = sessionPhone ? loadProfile(sessionPhone) : null;
 
-  const [authed, setAuthed] = useState(session);
-  const [user, setUser] = useState(profile ?? { phone: "", name: "" });
+  const [authed, setAuthed] = useState(!!sessionProfile);
+  const [user, setUser] = useState(sessionProfile ?? { phone: "", name: "" });
   const [tab, setTab] = useState<Tab>("chats");
   const [unreadNotifs] = useState(2);
 
   useEffect(() => {
     if (authed && user.phone) {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
-      localStorage.setItem(SESSION_KEY, "1");
+      saveProfile(user);
+      localStorage.setItem(SESSION_KEY, user.phone);
     }
   }, [authed, user]);
 
-  // Если профиль уже есть — передаём его в AuthPage, чтобы не спрашивало имя
   const handleAuth = (phone: string, name: string) => {
-    const resolvedName = name || profile?.name || "";
-    setUser({ phone, name: resolvedName });
+    // Имя: если уже есть профиль под этим номером — берём оттуда
+    const existing = loadProfile(phone);
+    const resolvedName = name || existing?.name || "";
+    const newUser = { phone, name: resolvedName };
+    saveProfile(newUser);
+    localStorage.setItem(SESSION_KEY, phone);
+    setUser(newUser);
     setAuthed(true);
   };
 
   const handleLogout = () => {
-    // Удаляем только сессию, профиль (имя) остаётся
     localStorage.removeItem(SESSION_KEY);
     setAuthed(false);
+    setUser({ phone: "", name: "" });
     setTab("chats");
   };
 
+  // Передаём existingProfile по конкретному телефону (заполняется только после ввода номера)
+  const getExistingProfile = (phone: string) => loadProfile(phone);
+
   if (!authed) {
-    return <AuthPage onAuth={handleAuth} existingProfile={profile} />;
+    return <AuthPage onAuth={handleAuth} getExistingProfile={getExistingProfile} />;
   }
 
   return (
@@ -72,7 +84,7 @@ export default function App() {
     >
       <div className="flex-1 overflow-hidden" style={{ background: "var(--surface)" }}>
         <div className="h-full overflow-hidden">
-          {tab === "chats" && <ChatsPage userName={user.name} />}
+          {tab === "chats" && <ChatsPage userPhone={user.phone} />}
           {tab === "contacts" && <ContactsPage />}
           {tab === "notifications" && <NotificationsPage />}
           {tab === "profile" && (

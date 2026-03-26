@@ -1,31 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { Chat, Member, INITIAL_CHATS } from "@/types/chat";
 import ChatView from "@/components/chats/ChatView";
 import CreateGroupModal from "@/components/chats/CreateGroupModal";
 
 const MY_ID = 0;
-const CHATS_KEY = "2keys_chats";
 
-function loadChats(): Chat[] {
+function chatsKey(phone: string) { return `2keys_chats_${phone}`; }
+
+function loadChats(phone: string): Chat[] {
   try {
-    const raw = localStorage.getItem(CHATS_KEY);
+    const raw = localStorage.getItem(chatsKey(phone));
     return raw ? JSON.parse(raw) : INITIAL_CHATS;
   } catch { return INITIAL_CHATS; }
 }
 
-function saveChats(chats: Chat[]) {
+function saveChats(phone: string, chats: Chat[]) {
   try {
-    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+    localStorage.setItem(chatsKey(phone), JSON.stringify(chats));
   } catch { /* ignore quota errors */ }
 }
 
 interface ChatsPageProps {
-  userName: string;
+  userPhone: string;
 }
 
-export default function ChatsPage({ userName: _userName }: ChatsPageProps) {
-  const [chats, setChatsRaw] = useState<Chat[]>(loadChats);
+export default function ChatsPage({ userPhone }: ChatsPageProps) {
+  const [chats, setChatsRaw] = useState<Chat[]>(() => loadChats(userPhone));
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [search, setSearch] = useState("");
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -33,19 +34,10 @@ export default function ChatsPage({ userName: _userName }: ChatsPageProps) {
   const setChats = (updater: Chat[] | ((prev: Chat[]) => Chat[])) => {
     setChatsRaw((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      saveChats(next);
+      saveChats(userPhone, next);
       return next;
     });
   };
-
-  // Синхронизируем activeChat при изменении chats
-  useEffect(() => {
-    if (activeChat) {
-      const updated = chats.find((c) => c.id === activeChat.id);
-      if (updated) setActiveChat(updated);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const filtered = chats.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
