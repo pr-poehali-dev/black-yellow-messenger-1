@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import AuthPage from "@/pages/AuthPage";
 import ChatsPage from "@/pages/ChatsPage";
@@ -15,11 +15,29 @@ const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
+const STORAGE_KEY = "2keys_user";
+
+function loadUser(): { phone: string; name: string } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const [authed, setAuthed] = useState(false);
-  const [user, setUser] = useState({ phone: "", name: "" });
+  const saved = loadUser();
+  const [authed, setAuthed] = useState(!!saved);
+  const [user, setUser] = useState(saved ?? { phone: "", name: "" });
   const [tab, setTab] = useState<Tab>("chats");
   const [unreadNotifs] = useState(2);
+
+  useEffect(() => {
+    if (authed && user.phone) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    }
+  }, [authed, user]);
 
   const handleAuth = (phone: string, name: string) => {
     setUser({ phone, name });
@@ -27,6 +45,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem(STORAGE_KEY);
     setAuthed(false);
     setUser({ phone: "", name: "" });
     setTab("chats");
