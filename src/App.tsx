@@ -1,28 +1,118 @@
+import { useState } from "react";
+import Icon from "@/components/ui/icon";
+import AuthPage from "@/pages/AuthPage";
+import ChatsPage from "@/pages/ChatsPage";
+import ContactsPage from "@/pages/ContactsPage";
+import NotificationsPage from "@/pages/NotificationsPage";
+import ProfilePage from "@/pages/ProfilePage";
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+type Tab = "chats" | "contacts" | "notifications" | "profile";
 
-const queryClient = new QueryClient();
+const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
+  { id: "chats", label: "Чаты", icon: "MessageSquare" },
+  { id: "contacts", label: "Контакты", icon: "Users" },
+  { id: "notifications", label: "События", icon: "Bell" },
+  { id: "profile", label: "Профиль", icon: "User" },
+];
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+export default function App() {
+  const [authed, setAuthed] = useState(false);
+  const [user, setUser] = useState({ phone: "", name: "" });
+  const [tab, setTab] = useState<Tab>("chats");
+  const [unreadNotifs] = useState(2);
 
-export default App;
+  const handleAuth = (phone: string, name: string) => {
+    setUser({ phone, name });
+    setAuthed(true);
+  };
+
+  const handleLogout = () => {
+    setAuthed(false);
+    setUser({ phone: "", name: "" });
+    setTab("chats");
+  };
+
+  if (!authed) {
+    return <AuthPage onAuth={handleAuth} />;
+  }
+
+  return (
+    <div
+      className="flex flex-col h-screen max-w-md mx-auto relative"
+      style={{ background: "var(--black)" }}
+    >
+      <div
+        className="flex-1 overflow-hidden"
+        style={{ background: "var(--surface)" }}
+      >
+        <div className="h-full overflow-hidden">
+          {tab === "chats" && <ChatsPage userName={user.name} />}
+          {tab === "contacts" && <ContactsPage />}
+          {tab === "notifications" && <NotificationsPage />}
+          {tab === "profile" && (
+            <ProfilePage
+              name={user.name}
+              phone={user.phone}
+              onLogout={handleLogout}
+            />
+          )}
+        </div>
+      </div>
+
+      <nav
+        className="flex-shrink-0 border-t"
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--border-color)",
+          paddingBottom: "env(safe-area-inset-bottom, 0)",
+        }}
+      >
+        <div className="flex items-stretch">
+          {NAV_ITEMS.map((item) => {
+            const isActive = tab === item.id;
+            const showBadge = item.id === "notifications" && unreadNotifs > 0;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                className="flex-1 flex flex-col items-center justify-center py-3 gap-1 transition-all relative"
+              >
+                <div className="relative">
+                  <Icon
+                    name={item.icon}
+                    size={22}
+                    style={{ color: isActive ? "var(--yellow)" : "var(--text-muted)" }}
+                  />
+                  {showBadge && (
+                    <span
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center font-display font-black text-black"
+                      style={{ background: "var(--yellow)", fontSize: "9px" }}
+                    >
+                      {unreadNotifs}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className="font-body"
+                  style={{
+                    color: isActive ? "var(--yellow)" : "var(--text-muted)",
+                    fontSize: "10px",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                    style={{ background: "var(--yellow)" }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
