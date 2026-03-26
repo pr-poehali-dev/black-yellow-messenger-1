@@ -1,20 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { Chat, Member, INITIAL_CHATS } from "@/types/chat";
 import ChatView from "@/components/chats/ChatView";
 import CreateGroupModal from "@/components/chats/CreateGroupModal";
 
 const MY_ID = 0;
+const CHATS_KEY = "2keys_chats";
+
+function loadChats(): Chat[] {
+  try {
+    const raw = localStorage.getItem(CHATS_KEY);
+    return raw ? JSON.parse(raw) : INITIAL_CHATS;
+  } catch { return INITIAL_CHATS; }
+}
+
+function saveChats(chats: Chat[]) {
+  try {
+    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+  } catch { /* ignore quota errors */ }
+}
 
 interface ChatsPageProps {
   userName: string;
 }
 
 export default function ChatsPage({ userName: _userName }: ChatsPageProps) {
-  const [chats, setChats] = useState<Chat[]>(INITIAL_CHATS);
+  const [chats, setChatsRaw] = useState<Chat[]>(loadChats);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [search, setSearch] = useState("");
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+
+  const setChats = (updater: Chat[] | ((prev: Chat[]) => Chat[])) => {
+    setChatsRaw((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveChats(next);
+      return next;
+    });
+  };
+
+  // Синхронизируем activeChat при изменении chats
+  useEffect(() => {
+    if (activeChat) {
+      const updated = chats.find((c) => c.id === activeChat.id);
+      if (updated) setActiveChat(updated);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = chats.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())

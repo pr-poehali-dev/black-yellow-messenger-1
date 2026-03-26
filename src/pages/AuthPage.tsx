@@ -3,13 +3,15 @@ import Icon from "@/components/ui/icon";
 
 interface AuthPageProps {
   onAuth: (phone: string, name: string) => void;
+  existingProfile: { phone: string; name: string } | null;
 }
 
-export default function AuthPage({ onAuth }: AuthPageProps) {
+export default function AuthPage({ onAuth, existingProfile }: AuthPageProps) {
+  const isReturning = !!existingProfile;
   const [step, setStep] = useState<"phone" | "code" | "name">("phone");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(existingProfile?.phone ?? "");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(existingProfile?.name ?? "");
   const [loading, setLoading] = useState(false);
 
   const formatPhone = (val: string) => {
@@ -44,22 +46,25 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
     next[idx] = val;
     setCode(next);
     if (val && idx < 5) {
-      const el = document.getElementById(`otp-${idx + 1}`);
-      el?.focus();
+      document.getElementById(`otp-${idx + 1}`)?.focus();
     }
     if (next.every((d) => d !== "") && next.join("").length === 6) {
       setLoading(true);
       setTimeout(() => {
         setLoading(false);
-        setStep("name");
+        // Если профиль уже есть — имя не спрашиваем, сразу входим
+        if (isReturning) {
+          onAuth(phone, existingProfile.name);
+        } else {
+          setStep("name");
+        }
       }, 900);
     }
   };
 
   const handleCodeKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === "Backspace" && !code[idx] && idx > 0) {
-      const el = document.getElementById(`otp-${idx - 1}`);
-      el?.focus();
+      document.getElementById(`otp-${idx - 1}`)?.focus();
     }
   };
 
@@ -69,9 +74,10 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.07) 0%, transparent 60%), var(--black)" }}>
-
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6"
+      style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.07) 0%, transparent 60%), var(--black)" }}
+    >
       <div className="w-full max-w-sm animate-fade-in">
         <div className="mb-10 text-center">
           <div className="inline-flex items-center gap-2 mb-6">
@@ -80,15 +86,24 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
             </div>
             <span className="font-display text-2xl font-black text-yellow tracking-tight">2Keys</span>
           </div>
-          <p className="text-sm text-muted-foreground font-body" style={{ color: "var(--text-muted)" }}>
-            Защищённые переписки с End-to-End шифрованием
-          </p>
+          {isReturning ? (
+            <p className="text-sm font-body" style={{ color: "var(--text-muted)" }}>
+              С возвращением, <span style={{ color: "var(--text)" }}>{existingProfile.name}</span>
+            </p>
+          ) : (
+            <p className="text-sm font-body" style={{ color: "var(--text-muted)" }}>
+              Защищённые переписки с End-to-End шифрованием
+            </p>
+          )}
         </div>
 
         {step === "phone" && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-xs font-body mb-2" style={{ color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <label
+                className="block text-xs font-body mb-2"
+                style={{ color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+              >
                 Номер телефона
               </label>
               <input
@@ -97,12 +112,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
                 onChange={handlePhoneInput}
                 placeholder="+7 (___) ___-__-__"
                 className="w-full px-4 py-3.5 rounded-xl text-base font-body border transition-all"
-                style={{
-                  background: "var(--surface2)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text)",
-                  caretColor: "var(--yellow)",
-                }}
+                style={{ background: "var(--surface2)", borderColor: "var(--border-color)", color: "var(--text)", caretColor: "var(--yellow)" }}
                 autoFocus
               />
             </div>
@@ -117,9 +127,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
                   <Icon name="Loader2" size={16} className="animate-spin" />
                   Отправляю код...
                 </span>
-              ) : (
-                "Получить код"
-              )}
+              ) : "Получить код"}
             </button>
             <p className="text-xs text-center font-body" style={{ color: "var(--text-muted)" }}>
               Мы отправим SMS с кодом подтверждения
@@ -144,7 +152,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
                   value={digit}
                   onChange={(e) => handleCodeInput(e.target.value, i)}
                   onKeyDown={(e) => handleCodeKeyDown(e, i)}
-                  className="w-11 h-13 text-center text-xl font-display font-bold rounded-xl border transition-all"
+                  className="w-11 text-center text-xl font-display font-bold rounded-xl border transition-all"
                   style={{
                     background: "var(--surface2)",
                     borderColor: digit ? "var(--yellow)" : "var(--border-color)",
@@ -158,7 +166,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
             {loading && (
               <div className="flex items-center justify-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
                 <Icon name="Loader2" size={14} className="animate-spin text-yellow" />
-                Проверяю код...
+                {isReturning ? "Вхожу в аккаунт..." : "Проверяю код..."}
               </div>
             )}
             <button
@@ -178,7 +186,9 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
                 <Icon name="User" size={28} className="text-black" />
               </div>
               <p className="font-display text-lg font-bold">Как вас зовут?</p>
-              <p className="text-sm font-body mt-1" style={{ color: "var(--text-muted)" }}>Ваше имя увидят в контактах</p>
+              <p className="text-sm font-body mt-1" style={{ color: "var(--text-muted)" }}>
+                Ваше имя спрашивается только один раз
+              </p>
             </div>
             <input
               type="text"
@@ -187,12 +197,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
               placeholder="Ваше имя"
               onKeyDown={(e) => e.key === "Enter" && handleFinish()}
               className="w-full px-4 py-3.5 rounded-xl text-base font-body border transition-all"
-              style={{
-                background: "var(--surface2)",
-                borderColor: "var(--border-color)",
-                color: "var(--text)",
-                caretColor: "var(--yellow)",
-              }}
+              style={{ background: "var(--surface2)", borderColor: "var(--border-color)", color: "var(--text)", caretColor: "var(--yellow)" }}
               autoFocus
             />
             <button
@@ -207,9 +212,11 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
         )}
       </div>
 
-      <div className="mt-12 flex items-center gap-2 animate-fade-in" style={{ animationDelay: "0.3s", opacity: 0 }}>
+      <div className="mt-12 flex items-center gap-2" style={{ opacity: 0.5 }}>
         <Icon name="ShieldCheck" size={12} style={{ color: "var(--text-muted)" }} />
-        <span className="text-xs font-body" style={{ color: "var(--text-muted)" }}>End-to-End шифрование · Без рекламы · Без слежки</span>
+        <span className="text-xs font-body" style={{ color: "var(--text-muted)" }}>
+          End-to-End шифрование · Без рекламы · Без слежки
+        </span>
       </div>
     </div>
   );
